@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aircraft Status Squadron 602</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+html{color-scheme:light}
+[hidden]{display:none!important}
+body{margin:0}
+img{max-width:100%}
+/* Layout: one status board. Header + status tally on top, then a single wide table
+   where aircraft and status cells span all defect rows of that aircraft. */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --sunken:#f5f7fa; --line:#d3d9e2; --line-strong:#aab4c3;
+  --fg:#16202e; --muted:#5b6778; --accent:#1f3f6e; --accent-fg:#ffffff;
+  --ok:#17803d; --warn:#c2610c; --bad:#c81e1e;
+  --head-line:rgba(255,255,255,.28); --dept-m:#d7ebfa; --dept-c:#fbdfe9; --sep:#000000; --ok-bg:#e3f4e8; --warn-bg:#fdeeda; --bad-bg:#fde5e5;
+  /* printed page: always white paper with dark ink, in either theme */
+  --paper:#ffffff; --ink:#141a22; --ink-2:#55606e; --rule:#9aa3af; --p-head:#1f3f6e;
+  --p-ok:#17803d; --p-warn:#c2610c; --p-bad:#c81e1e; --p-m:#d7ebfa; --p-c:#fbdfe9; --p-sep:#000000;
+  --display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161f; --surface:#18212d; --sunken:#131b25; --line:#2b3746; --line-strong:#465468;
+    --fg:#e6ebf2; --muted:#98a5b7; --accent:#8fb4ea; --accent-fg:#0d1622;
+    --ok:#4fcb7a; --warn:#f3a04a; --bad:#ff7a75;
+    --ok-bg:#16321f; --warn-bg:#3a2a14; --bad-bg:#3d1c1c; --head-line:rgba(0,0,0,.25); --dept-m:#1d3850; --dept-c:#4a2638; --sep:#f2f5f9; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161f; --surface:#18212d; --sunken:#131b25; --line:#2b3746; --line-strong:#465468;
+  --fg:#e6ebf2; --muted:#98a5b7; --accent:#8fb4ea; --accent-fg:#0d1622;
+  --ok:#4fcb7a; --warn:#f3a04a; --bad:#ff7a75;
+  --ok-bg:#16321f; --warn-bg:#3a2a14; --bad-bg:#3d1c1c; --head-line:rgba(0,0,0,.25); --dept-m:#1d3850; --dept-c:#4a2638; --sep:#f2f5f9; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.5;
+  padding-inline:20px;padding-block:24px 48px}
+.wrap{max-width:none;display:flex;flex-direction:column;gap:16px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;
+  border-bottom:3px solid var(--accent);padding-bottom:12px}
+.eyebrow{font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:500}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,4vw,32px);line-height:1.15;margin:0;
+  letter-spacing:.02em;text-wrap:balance;text-transform:uppercase}
+.asof{font-size:13px;color:var(--muted);text-align:right}
+.asof b{display:block;color:var(--fg);font-family:var(--display);font-size:17px;font-weight:600}
+
+.head-r{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.actions button{font-family:var(--display);font-weight:600;letter-spacing:.06em;padding:8px 18px}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.primary:hover{color:var(--accent-fg);filter:brightness(1.12)}
+button:disabled{opacity:.45;cursor:default;pointer-events:none}
+.dirty{display:block;color:var(--warn);font-weight:600;font-size:12px}
+.tally{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.tally li{display:flex;align-items:baseline;gap:8px;padding:6px 12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:4px;font-family:var(--display);font-weight:600}
+.tally .n{font-size:20px;font-variant-numeric:tabular-nums}
+.tally .l{font-size:12px;letter-spacing:.04em}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.note{font-size:13px;color:var(--muted);margin:0;min-width:0;flex:1 1 320px}
+.note.err{color:var(--bad);font-weight:600}
+.bar-btns{display:flex;flex-wrap:wrap;gap:8px}
+.keyform{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line-strong);border-radius:4px;padding:12px 14px}
+.keyform label{font-weight:600}
+.keyform input{width:auto;min-width:200px;border-color:var(--line-strong);background:var(--bg)}
+.note .tag{display:inline-block;background:var(--warn-bg);color:var(--warn);font-weight:600;
+  padding:1px 8px;border-radius:3px;margin-right:6px}
+button{font:inherit;cursor:pointer;color:var(--fg);background:var(--surface);border:1px solid var(--line-strong);
+  border-radius:4px;padding:6px 12px}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.danger.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line-strong);border-radius:4px}
+table{border-collapse:collapse;width:100%;min-width:1900px;table-layout:fixed}
+thead th{background:var(--accent);color:var(--accent-fg);font-weight:600;font-size:13px;text-align:left;
+  padding:10px 10px;border-right:1px solid var(--head-line)}
+thead th small{display:block;font-weight:400;opacity:.8;font-size:11px}
+tbody{border-top:3px solid var(--sep)}
+#board tbody:last-child{border-bottom:3px solid var(--sep)}
+td,tbody th{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;vertical-align:top}
+tbody tr:last-child td,tbody tr:last-child th{border-bottom:0}
+.ac{background:var(--sunken);text-align:left;padding:12px 10px}
+.ac .name{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.02em;display:block}
+.ac .add{margin-top:10px;font-size:12px;padding:4px 8px}
+.st{background:var(--sunken);padding:10px 8px}
+
+input,select,textarea{font:inherit;color:var(--fg);background:transparent;border:1px solid transparent;
+  border-radius:3px;padding:6px 8px;width:100%}
+input:hover,select:hover,textarea:hover{border-color:var(--line)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);background:var(--surface);outline:none}
+textarea{border-color:var(--line);resize:vertical;min-height:38px;field-sizing:content;line-height:1.45;display:block}
+select{border-color:var(--line);background:var(--surface)}
+input[type=date]{font-variant-numeric:tabular-nums;border-color:var(--line)}
+input:disabled,input[readonly]{background:var(--sunken);color:var(--muted);border-style:dashed}
+input[readonly].has{color:var(--fg);font-weight:600}
+::placeholder{color:var(--muted);opacity:.7}
+
+.status{font-family:var(--display);font-weight:700;font-size:15px;padding:8px}
+.status option{font-weight:600}
+.c-none{color:var(--muted)} .c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-bad{color:var(--bad)}
+.mel{font-weight:600}
+.left{display:inline-block;margin-top:5px;font-size:12px;font-weight:600;padding:1px 8px;border-radius:3px;
+  font-variant-numeric:tabular-nums}
+.left.ok{background:var(--ok-bg);color:var(--ok)}
+.left.warn{background:var(--warn-bg);color:var(--warn)}
+.left.bad{background:var(--bad-bg);color:var(--bad)}
+.hint{display:block;margin-top:4px;font-size:11px;color:var(--muted)}
+.del{padding:6px 2px;text-align:center;border-right:0;white-space:nowrap}
+.del button{border-color:transparent;background:transparent;color:var(--muted);padding:4px 6px;font-size:13px;line-height:1}
+.del button[data-del]{font-size:16px}
+.del button[data-del]:hover{color:var(--bad);border-color:var(--bad)}
+.mv{display:flex;gap:4px;margin-top:6px}
+.mv button{padding:2px 8px;font-size:11px;line-height:1.4;color:var(--muted)}
+#board tr.d-m td.tint{background:var(--dept-m)}
+#board tr.d-c td.tint{background:var(--dept-c)}
+textarea.nodisp{color:var(--bad);font-weight:600}
+
+.pv{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column}
+.pv-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border-bottom:1px solid var(--line-strong);
+  padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px}
+.pv-bar strong{font-family:var(--display);letter-spacing:.04em}
+.pv-bar .sp{flex:1}
+.pv-msg{font-size:13px;color:var(--warn);font-weight:600}
+.pv-scroll{flex:1;overflow:auto;padding:20px 16px}
+#pages{display:flex;flex-direction:column;gap:20px;align-items:center;width:max-content;min-width:100%}
+.page{width:1123px;min-height:794px;background:var(--paper);color:var(--ink);padding:36px 42px 28px;box-shadow:0 2px 12px rgba(0,0,0,.3);
+  font-family:var(--body);font-size:11.5px;line-height:1.45;display:flex;flex-direction:column;gap:10px}
+.p-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:3px solid var(--p-head);padding-bottom:6px}
+.p-title{font-family:var(--display);font-weight:700;font-size:23px;line-height:1.2;color:var(--ink)}
+.p-meta{text-align:right;font-size:11.5px;color:var(--ink-2)}
+.p-meta b{color:var(--ink);font-weight:600}
+.p-tally{display:flex;flex-wrap:wrap;gap:6px 22px;font-family:var(--display);font-weight:600;font-size:12.5px}
+.page table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse}
+.page th,.page td{border:1px solid var(--rule);padding:4px 6px;vertical-align:top;text-align:left;font-size:11.5px;
+  background:transparent;color:var(--ink);font-weight:400;overflow-wrap:anywhere;white-space:pre-wrap}
+.page thead th{background:var(--p-head);color:#ffffff;font-weight:600;text-align:center;vertical-align:middle}
+.page tbody{border-top:0}
+.page tbody tr:last-child td,.page tbody tr:last-child th{border-bottom:1px solid var(--rule)}
+.page tbody tr:first-child > *{border-top:3px solid var(--p-sep)}
+.page tbody:last-child tr:last-child > *,.page tbody:last-child .p-ac,.page tbody:last-child .p-st{border-bottom:3px solid var(--p-sep)}
+.page .p-ac{font-family:var(--display);font-weight:700;font-size:12px;vertical-align:middle;text-align:center;padding-inline:2px;overflow-wrap:normal}
+.page .p-st{font-family:var(--display);font-weight:700;font-size:10.5px;vertical-align:middle;text-align:center;padding-inline:2px;overflow-wrap:normal}
+.page td.t-m{background:var(--p-m)}
+.page td.t-c{background:var(--p-c)}
+.page .p-c{text-align:center;padding-inline:3px}
+.page .p-d{white-space:nowrap}
+.page .p-none{color:var(--ink-2)}
+.page .p-ok{color:var(--p-ok)} .page .p-warn{color:var(--p-warn)} .page .p-bad{color:var(--p-bad)}
+.page .p-red{color:var(--p-bad);font-weight:600}
+.page .p-left{display:block;font-size:10.5px;font-weight:600}
+.p-foot{margin-top:auto;display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-2)}
+.legend{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 20px;margin:0}
+.legend b{color:var(--fg)}
+</style>
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">ฝูงบิน 602 · สถานภาพอากาศยานประจำวัน</div>
+      <h1>Aircraft Status Squadron 602</h1>
+    </div>
+    <div class="head-r">
+      <div class="actions">
+        <button type="button" class="act" id="cancel">CANCEL</button>
+        <button type="button" class="primary" id="save">SAVE</button>
+        <button type="button" class="act" id="preview">PREVIEW</button>
+        <button type="button" class="act" id="pdf">EXPORT TO PDF</button>
+        <button type="button" class="act" id="export" hidden>EXPORT TO EXCEL</button>
+      </div>
+      <span class="dirty" id="xmsg" hidden></span>
+      <div class="asof">ข้อมูล ณ วันที่<b id="asof"></b><span class="dirty" id="dirty" hidden>มีการแก้ไขที่ยังไม่ได้บันทึก</span></div>
+    </div>
+  </header>
+
+  <ul class="tally" id="tally" aria-label="สรุปจำนวนอากาศยานตามสถานภาพ"></ul>
+
+  <div class="bar">
+    <p class="note" id="note"></p>
+    <div class="bar-btns">
+      <button type="button" id="reload" hidden>โหลดข้อมูลล่าสุด</button>
+      <button type="button" class="danger" id="clear">ล้างข้อมูลทั้งหมด</button>
+    </div>
+  </div>
+
+  <form class="keyform" id="keyform" hidden>
+    <label for="keyin">รหัสเข้าใช้งาน</label>
+    <input type="password" id="keyin" autocomplete="current-password" required>
+    <button type="submit" class="primary">เข้าใช้งาน</button>
+  </form>
+
+  <div class="scroll" id="scrollwrap" hidden>
+    <table id="board">
+      <colgroup>
+        <col style="width:140px"><col style="width:180px"><col style="width:150px"><col style="width:230px"><col style="width:150px"><col style="width:230px">
+        <col style="width:160px"><col style="width:150px"><col style="width:170px"><col style="width:240px"><col style="width:100px">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">อากาศยาน</th>
+          <th scope="col">สถานภาพ</th>
+          <th scope="col">วันที่ตรวจพบ</th>
+          <th scope="col">รายการข้อขัดข้อง</th>
+          <th scope="col">ฝ่ายที่รับผิดชอบ</th>
+          <th scope="col">การดำเนินการ</th>
+          <th scope="col">MEL Category</th>
+          <th scope="col">วันที่เริ่มต้น<small>กรณีติด MEL (วันถัดจากวันที่ตรวจพบ)</small></th>
+          <th scope="col">วันครบกำหนด</th>
+          <th scope="col">หมายเหตุ</th>
+          <th scope="col"><span style="position:absolute;left:-9999px">ลบ</span></th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+
+  <p class="legend">
+    <span><b>MEL A</b> เลือกวันครบกำหนดเอง</span>
+    <span><b>B</b> 3 วันปฏิทิน</span>
+    <span><b>C</b> 10 วันปฏิทิน</span>
+    <span><b>D</b> 120 วันปฏิทิน</span>
+    <span>B, C, D ไม่นับวันที่พบข้อขัดข้อง ระบบคำนวณให้</span>
+  </p>
+</div>
+
+<div class="pv" id="pv" hidden>
+  <div class="pv-bar">
+    <strong>PREVIEW</strong><span>A4 แนวนอน</span>
+    <span class="pv-msg" id="pvmsg"></span>
+    <span class="sp"></span>
+    <button type="button" class="primary" id="pvpdf">EXPORT TO PDF</button>
+    <button type="button" id="pvclose">ปิด</button>
+  </div>
+  <div class="pv-scroll" id="pvscroll"><div id="pages"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+  var CATS={B:3,C:10,D:120};
+  var STATUSES=[['','— เลือกสถานภาพ —','c-none'],['FMC','FMC','c-ok'],['PMC','PMC','c-warn'],
+    ['NMCM (SCHED)','NMCM (SCHED)','c-bad'],['NMCM (UNSCHED)','NMCM (UNSCHED)','c-bad'],['NMCB','NMCB','c-bad']];
+  var MELS=[['','— ไม่ติด MEL —'],['A','A (กำหนดเอง)'],['B','B (3 วัน)'],['C','C (10 วัน)'],['D','D (120 วัน)']];
+  var DEPTS=[['','— เลือกฝ่าย —'],['ฝ่ายการช่าง','ฝ่ายการช่าง'],['ฝ่ายสื่อสาร','ฝ่ายสื่อสาร']];
+  var FLEET=['A319','A320 (03)','A320 (05)','A340 (04)','SSJ100LR (06)','SSJ100LR (07)','SSJ100LR (08)'];
+
+  function pad(n){return (n<10?'0':'')+n}
+  function todayISO(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function utc(iso){var p=iso.split('-').map(Number);return Date.UTC(p[0],p[1]-1,p[2])}
+  function addDays(iso,n){return new Date(utc(iso)+n*864e5).toISOString().slice(0,10)}
+  function isND(t){return /no\s*dispatch/i.test(t||'')}
+  function swap(a,i,j){if(j<0||j>=a.length)return false;var x=a[i];a[i]=a[j];a[j]=x;return true}
+  function fileName(ext){var d=new Date();return 'AC STATUS '+pad(d.getUTCFullYear()%100)+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+' '+pad(d.getUTCHours())+pad(d.getUTCMinutes())+'Z.'+ext}
+  function blankRow(){return {found:'',defect:'',dept:'',action:'',mel:'',start:'',due:'',note:''}}
+  function blankFleet(){return FLEET.map(function(n){return {name:n,status:'',rows:[blankRow()]}})}
+
+  /* data as of the PDF exported 2 Oct 2026 (AC STATUS 261002 1031Z) */
+  function seed(){return [{"name": "A319", "status": "NMCM (UNSCHED)", "rows": [{"found": "2026-09-26", "defect": "รอซ่อมสีลำตัว บ.", "dept": "ฝ่ายการช่าง", "action": "ดำเนินการประสาน TG\n(ยังไม่สามารถ คาดการณ์ FMC ได้ รอเรื่องการจัดหาสี)", "mel": "", "start": "", "due": "", "note": ""}, {"found": "", "defect": "C11 CHECK", "dept": "ฝ่ายการช่าง", "action": "16 ธ.ค.69 - 16 ม.ค.70\n(ปัจจุบันวางแผนดำเนินการไปในช่วงซ่อมสี)", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2025-07-03", "defect": "RMP 1/2 / VHF 1 MESSAGE SHOW ON CFDF", "dept": "ฝ่ายสื่อสาร", "action": "", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2026-01-24", "defect": "DATA LOADING ROUTING BOX เสีย", "dept": "ฝ่ายสื่อสาร", "action": "สอ.ทอ.อยู่ระหว่างวางแผนจัดซื้อ", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2024-10-11", "defect": "SATCOM ANTENNA INTERMEDIATE GAIN", "dept": "ฝ่ายสื่อสาร", "action": "", "mel": "", "start": "", "due": "", "note": ""}]}, {"name": "A320 (03)", "status": "NMCM (UNSCHED)", "rows": [{"found": "2026-09-15", "defect": "C5 CHECK", "dept": "ฝ่ายการช่าง", "action": "15 ก.ย. - 15 ต.ค.69", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2026-09-15", "defect": "ถอด ACT TANK ส่ง AIRBUS", "dept": "ฝ่ายการช่าง", "action": "ACT TANK คาดว่าได้รับคืนช่วงกลางเดือน พ.ย.69", "mel": "", "start": "", "due": "", "note": ""}, {"found": "", "defect": "ENG2 IGN B FAULT", "dept": "ฝ่ายการช่าง", "action": "ดำเนินการแก้ไขช่วงC5-CHECK", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2026-09-14", "defect": "PFD ON CAPTAIN SIDE INTERMITTENT FAULT DURING FLIGHT", "dept": "ฝ่ายสื่อสาร", "action": "ดำเนินการแก้ไขช่วงC5-CHECK", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2025-05-23", "defect": "VOR1&2 INTERMITTENT NO DATA ON ND ในบางครั้ง", "dept": "ฝ่ายสื่อสาร", "action": "รอ WIRING", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2024-02-02", "defect": "DU ND FO ปรับแสงไม่ได้", "dept": "ฝ่ายสื่อสาร", "action": "รอพัสดุ", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2023-07-05", "defect": "RT-5000 (V/UHF 2) ใช้งานไม่ได้", "dept": "ฝ่ายสื่อสาร", "action": "รอพัสดุ", "mel": "", "start": "", "due": "", "note": ""}]}, {"name": "A320 (05)", "status": "NMCM (UNSCHED)", "rows": [{"found": "2023-01-01", "defect": "AIR STAIR INOPERATIVE", "dept": "ฝ่ายการช่าง", "action": "รอ Wiring ทั้งระบบ", "mel": "", "start": "", "due": "", "note": ""}]}, {"name": "A340 (04)", "status": "NMCM (UNSCHED)", "rows": [{"found": "2026-09-27", "defect": "ENG 4 FIRE LOOP A FAULT", "dept": "ฝ่ายการช่าง", "action": "รอ TG ดำเนินการแก้ไข", "mel": "C", "start": "2026-09-28", "due": "2026-10-07", "note": ""}, {"found": "2026-09-27", "defect": "ENG 3 CTL SYS FAULT", "dept": "ฝ่ายการช่าง", "action": "รอ TG ดำเนินการแก้ไข", "mel": "", "start": "", "due": "", "note": "NO DISPATCH"}, {"found": "2026-09-27", "defect": "BRAKES NORM BRK FAULT", "dept": "ฝ่ายการช่าง", "action": "รอ TG ดำเนินการแก้ไข", "mel": "", "start": "", "due": "", "note": "NO DISPATCH"}, {"found": "2026-09-27", "defect": "BRAKES N/W/S MINOR FAULT", "dept": "ฝ่ายการช่าง", "action": "รอ TG ดำเนินการแก้ไข", "mel": "", "start": "", "due": "", "note": ""}, {"found": "2026-09-27", "defect": "BRAKES ANTI-SKID FAULT", "dept": "ฝ่ายการช่าง", "action": "รอ TG ดำเนินการแก้ไข", "mel": "", "start": "", "due": "", "note": "NO DISPATCH"}]}, {"name": "SSJ100LR (06)", "status": "NMCB", "rows": [{"found": "2024-11-29", "defect": "A/C PRESERVATION", "dept": "ฝ่ายการช่าง", "action": "", "mel": "", "start": "", "due": "", "note": ""}]}, {"name": "SSJ100LR (07)", "status": "NMCB", "rows": [{"found": "2024-11-29", "defect": "A/C PRESERVATION", "dept": "ฝ่ายการช่าง", "action": "", "mel": "", "start": "", "due": "", "note": ""}]}, {"name": "SSJ100LR (08)", "status": "NMCB", "rows": [{"found": "", "defect": "HANGAR QUEEN", "dept": "ฝ่ายการช่าง", "action": "", "mel": "", "start": "", "due": "", "note": ""}]}]}
+
+  /* ---------- Google Sheet via Apps Script web app (URL in config.js) ---------- */
+  var CFG=window.AC_STATUS_CONFIG||{}, API=CFG.apiUrl||'', KEYSTORE='acs602-access-key';
+  var state=blankFleet(), isSample=false, savedAt=null, savedJSON=null, dirty=false, ready=false, busySave=false;
+  var scrollWrap=document.getElementById('scrollwrap');
+  function getKey(){try{return localStorage.getItem(KEYSTORE)||''}catch(e){return ''}}
+  function setKey(k){try{localStorage.setItem(KEYSTORE,k)}catch(e){}}
+  function api(payload){
+    payload.key=getKey();
+    return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'})
+      .then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json()});
+  }
+  function normalize(f){
+    var out=[], seen={};
+    (Array.isArray(f)?f:[]).forEach(function(a){
+      if(!a||!a.name||seen[a.name])return; seen[a.name]=1;
+      var rows=(Array.isArray(a.rows)?a.rows:[]).map(function(x){var b=blankRow(),k;for(k in b)b[k]=x&&x[k]!=null?String(x[k]):'';return b});
+      if(!rows.length)rows=[blankRow()];
+      out.push({name:String(a.name),status:String(a.status||''),rows:rows});
+    });
+    FLEET.forEach(function(n){if(!seen[n])out.push({name:n,status:'',rows:[blankRow()]})});
+    return out;
+  }
+  function load(){var p=JSON.parse(savedJSON);state=p.fleet;savedAt=p.at||null}
+  function head(){
+    var b=document.getElementById('asof');
+    if(savedAt){var d=new Date(savedAt);
+      b.textContent=d.toLocaleDateString('th-TH-u-ca-gregory',{day:'numeric',month:'long',year:'numeric'})+' เวลา '+pad(d.getHours())+':'+pad(d.getMinutes())+' น.'}
+    else b.textContent=ready?'ยังไม่ได้บันทึก':'—';
+    document.getElementById('dirty').hidden=!dirty;
+    document.getElementById('save').disabled=!dirty||!ready||busySave;
+    document.getElementById('cancel').disabled=!dirty||busySave;
+  }
+  function net(t,isErr,showReload){
+    var n=document.getElementById('note'); n.textContent=t; n.classList.toggle('err',!!isErr);
+    document.getElementById('reload').hidden=!showReload;
+  }
+  function save(){dirty=true;head()}
+  function askKey(){var f=document.getElementById('keyform');f.hidden=false;document.getElementById('keyin').focus()}
+  function fetchLatest(){
+    ready=false; head();
+    if(!API||/PASTE/.test(API)){net('ยังไม่ได้ใส่ URL ของ Apps Script ใน config.js',true,false);return}
+    net('กำลังโหลดข้อมูลจาก Google Sheet…');
+    api({action:'load'}).then(function(res){
+      if(!res||!res.ok){
+        if(res&&res.error==='unauthorized'){askKey();net(getKey()?'รหัสเข้าใช้งานไม่ถูกต้อง':'ใส่รหัสเข้าใช้งานเพื่อดูข้อมูล',true,false);return}
+        throw new Error(res&&res.error||'error');
+      }
+      document.getElementById('keyform').hidden=true;
+      var empty=!res.fleet||!res.fleet.length;
+      savedJSON=JSON.stringify({fleet:empty?seed():normalize(res.fleet),at:res.savedAt||null});
+      load(); dirty=empty; ready=true; scrollWrap.hidden=false; render(); head();
+      net(empty?'Google Sheet ยังไม่มีข้อมูล ตารางนี้เป็นข้อมูลตั้งต้นจากไฟล์ 2 ต.ค. 2026 กด SAVE เพื่อบันทึกลง Sheet'
+               :'ข้อมูลจาก Google Sheet · แก้ไขแล้วกด SAVE เพื่อบันทึก',false,true);
+    }).catch(function(){net('โหลดข้อมูลจาก Google Sheet ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วกด "โหลดข้อมูลล่าสุด"',true,true)});
+  }
+  function commit(){
+    if(!ready||busySave)return;
+    busySave=true; head(); net('กำลังบันทึกลง Google Sheet…',false,false);
+    var snap=JSON.stringify(state);
+    api({action:'save',fleet:state,base:savedAt}).then(function(res){
+      if(res&&res.ok){
+        savedAt=res.savedAt; savedJSON=JSON.stringify({fleet:JSON.parse(snap),at:savedAt});
+        dirty=JSON.stringify(state)!==snap;
+        net('บันทึกลง Google Sheet แล้ว',false,true); return;
+      }
+      if(res&&res.error==='conflict'){net('มีผู้อื่นบันทึกข้อมูลใหม่กว่าหลังจากที่คุณเปิดหน้านี้ กด "โหลดข้อมูลล่าสุด" เพื่อดูข้อมูลล่าสุด (สิ่งที่แก้ไขอยู่จะหายไป)',true,true);return}
+      if(res&&res.error==='unauthorized'){askKey();net('รหัสเข้าใช้งานไม่ถูกต้อง',true,false);return}
+      throw new Error(res&&res.error||'error');
+    }).catch(function(){net('บันทึกไม่สำเร็จ สิ่งที่แก้ไขยังอยู่ในหน้านี้ ลองกด SAVE อีกครั้ง',true,true)})
+    .then(function(){busySave=false;head()});
+  }
+  function revert(){if(!savedJSON)return;load(); dirty=false; render(); head()}
+
+  function el(tag,attrs,kids){
+    var n=document.createElement(tag),k;
+    for(k in attrs||{}){ if(k==='text')n.textContent=attrs[k]; else if(k==='cls')n.className=attrs[k]; else n.setAttribute(k,attrs[k]); }
+    (kids||[]).forEach(function(c){n.appendChild(c)});
+    return n;
+  }
+  function statusClass(v){for(var i=0;i<STATUSES.length;i++)if(STATUSES[i][0]===v)return STATUSES[i][2];return 'c-none'}
+
+  var board=document.getElementById('board');
+
+  function render(){
+    Array.prototype.slice.call(board.tBodies).forEach(function(b){board.removeChild(b)});
+    state.forEach(function(ac,ai){
+      var tb=el('tbody');
+      ac.rows.forEach(function(row,ri){
+        var tr=el('tr',{'data-ai':ai,'data-ri':ri}), id='ac'+ai+'-r'+ri+'-';
+        if(ri===0){
+          var up=el('button',{type:'button','data-acup':ai,title:'เลื่อนอากาศยานขึ้น','aria-label':'เลื่อน '+ac.name+' ขึ้น',text:'▲'});
+          var dn=el('button',{type:'button','data-acdn':ai,title:'เลื่อนอากาศยานลง','aria-label':'เลื่อน '+ac.name+' ลง',text:'▼'});
+          up.disabled=ai===0; dn.disabled=ai===state.length-1;
+          var mv=el('div',{cls:'mv'},[up,dn]);
+          var add=el('button',{type:'button',cls:'add','data-add':ai,text:'+ เพิ่มรายการ'});
+          tr.appendChild(el('th',{scope:'rowgroup',cls:'ac',rowspan:ac.rows.length},[el('span',{cls:'name',text:ac.name}),mv,add]));
+          var sel=el('select',{id:'ac'+ai+'-status',cls:'status '+statusClass(ac.status),'data-status':ai,'aria-label':'สถานภาพ '+ac.name});
+          STATUSES.forEach(function(s){var o=el('option',{value:s[0],text:s[1],cls:s[2]});if(s[0]===ac.status)o.selected=true;sel.appendChild(o)});
+          tr.appendChild(el('td',{cls:'st',rowspan:ac.rows.length},[sel]));
+        }
+        function ta(f,ph){var t=el('textarea',{id:id+f,'data-f':f,rows:2,placeholder:ph,'aria-label':ph});t.value=row[f];return el('td',{},[t])}
+        var found=el('input',{type:'date',id:id+'found','data-f':'found','aria-label':'วันที่ตรวจพบ'});
+        found.value=row.found||'';
+        tr.appendChild(el('td',{},[found]));
+        tr.appendChild(ta('defect','ระบุข้อขัดข้อง'));
+        var dept=el('select',{id:id+'dept','data-f':'dept','aria-label':'ฝ่ายที่รับผิดชอบ'});
+        DEPTS.forEach(function(m){var o=el('option',{value:m[0],text:m[1]});if(m[0]===(row.dept||''))o.selected=true;dept.appendChild(o)});
+        tr.appendChild(el('td',{},[dept]));
+        tr.appendChild(ta('action','ระบุการดำเนินการ'));
+        var mel=el('select',{id:id+'mel',cls:'mel','data-f':'mel','aria-label':'MEL Category'});
+        MELS.forEach(function(m){var o=el('option',{value:m[0],text:m[1]});if(m[0]===row.mel)o.selected=true;mel.appendChild(o)});
+        tr.appendChild(el('td',{},[mel]));
+        tr.appendChild(el('td',{},[el('input',{type:'date',id:id+'start','data-f':'start','aria-label':'วันที่เริ่มต้น'})]));
+        tr.appendChild(el('td',{},[el('input',{type:'date',id:id+'due','data-f':'due','aria-label':'วันครบกำหนด'}),el('span',{cls:'left'}),el('span',{cls:'hint'})]));
+        var nt=ta('note','หมายเหตุ'); nt.firstChild.classList.toggle('nodisp',isND(row.note)); tr.appendChild(nt);
+        var ru=el('button',{type:'button','data-up':'1',title:'เลื่อนรายการขึ้น','aria-label':'เลื่อนรายการขึ้น',text:'▲'});
+        var rd=el('button',{type:'button','data-dn':'1',title:'เลื่อนรายการลง','aria-label':'เลื่อนรายการลง',text:'▼'});
+        ru.disabled=ri===0; rd.disabled=ri===ac.rows.length-1;
+        tr.appendChild(el('td',{cls:'del'},[ru,rd,el('button',{type:'button','data-del':'1',title:'ลบรายการนี้','aria-label':'ลบรายการนี้',text:'×'})]));
+        tb.appendChild(tr);
+        refreshRow(tr,row);
+      });
+      board.appendChild(tb);
+    });
+    tally(); note();
+  }
+
+  function refreshRow(tr,row){
+    var start=tr.querySelector('[data-f=start]'), due=tr.querySelector('[data-f=due]'),
+        left=tr.querySelector('.left'), hint=tr.querySelector('.hint');
+    Array.prototype.forEach.call(tr.querySelectorAll('[data-f]'),function(c){if(c.getAttribute('data-f')!=='found')c.parentNode.classList.add('tint')});
+    tr.classList.toggle('d-m',row.dept==='ฝ่ายการช่าง'); tr.classList.toggle('d-c',row.dept==='ฝ่ายสื่อสาร');
+    var auto=CATS[row.mel];
+    if(!row.mel){row.start='';row.due=''}
+    else{row.start=row.found?addDays(row.found,1):''; if(auto)row.due=row.found?addDays(row.found,auto):''}
+    start.value=row.start; due.value=row.due;
+    start.disabled=!row.mel; due.disabled=!row.mel;
+    start.readOnly=true; start.classList.toggle('has',!!row.start);
+    due.readOnly=!!auto; due.classList.toggle('has',!!auto&&!!row.due);
+    hint.textContent=!row.mel?'':!row.found?'กรอกวันที่ตรวจพบก่อน':auto?'คำนวณอัตโนมัติ (ครบ '+auto+' วัน)':'เลือกวันครบกำหนดเอง';
+    left.className='left'; left.textContent='';
+    if(row.due){
+      var d=Math.round((utc(row.due)-utc(todayISO()))/864e5);
+      if(d<0){left.classList.add('bad');left.textContent='เกินกำหนด '+(-d)+' วัน'}
+      else if(d===0){left.classList.add('bad');left.textContent='ครบกำหนดวันนี้'}
+      else{left.classList.add(d<=3?'warn':'ok');left.textContent='เหลือ '+d+' วัน'}
+    }
+  }
+
+  function tally(){
+    var box=document.getElementById('tally'); box.textContent='';
+    box.appendChild(el('li',{},[el('span',{cls:'n',text:String(state.length)}),el('span',{cls:'l',text:'อากาศยานทั้งหมด'})]));
+    STATUSES.slice(1).forEach(function(s){
+      var n=state.filter(function(a){return a.status===s[0]}).length;
+      box.appendChild(el('li',{cls:s[2]},[el('span',{cls:'n',text:String(n)}),el('span',{cls:'l',text:s[1]})]));
+    });
+  }
+  function note(){}
+
+
+  function ctx(t){var tr=t.closest('tr');if(!tr)return null;var ai=+tr.getAttribute('data-ai'),ri=+tr.getAttribute('data-ri');return {tr:tr,ai:ai,ri:ri,row:state[ai].rows[ri]}}
+
+  function onEdit(e){
+    var t=e.target;
+    if(t.hasAttribute('data-status')){
+      var ac=state[+t.getAttribute('data-status')]; ac.status=t.value;
+      t.className='status '+statusClass(t.value); tally(); save(); return;
+    }
+    var f=t.getAttribute('data-f'); if(!f)return;
+    var c=ctx(t); if(!c)return;
+    c.row[f]=t.value;
+    if(f==='note')t.classList.toggle('nodisp',isND(t.value));
+    if(f==='dept'||f==='found'||f==='mel'||f==='start'||f==='due')refreshRow(c.tr,c.row);
+    save();
+  }
+  board.addEventListener('input',onEdit);
+  board.addEventListener('change',onEdit);
+
+  board.addEventListener('click',function(e){
+    var t=e.target, m;
+    if(t.hasAttribute('data-acup')||t.hasAttribute('data-acdn')){
+      var up=t.hasAttribute('data-acup'), i=+t.getAttribute(up?'data-acup':'data-acdn');
+      if(swap(state,i,i+(up?-1:1))){save();render()}
+      return;
+    }
+    if(t.hasAttribute('data-up')||t.hasAttribute('data-dn')){
+      m=ctx(t); if(!m)return;
+      if(swap(state[m.ai].rows,m.ri,m.ri+(t.hasAttribute('data-up')?-1:1))){save();render()}
+      return;
+    }
+    if(t.hasAttribute('data-add')){
+      var ai=+t.getAttribute('data-add'); state[ai].rows.push(blankRow()); save(); render();
+      var f=document.getElementById('ac'+ai+'-r'+(state[ai].rows.length-1)+'-defect'); if(f)f.focus();
+    }else if(t.hasAttribute('data-del')){
+      var c=ctx(t); if(!c)return;
+      var rows=state[c.ai].rows;
+      if(rows.length>1)rows.splice(c.ri,1); else rows[0]=blankRow();
+      save(); render();
+    }
+  });
+
+  var clear=document.getElementById('clear'), timer=null;
+  clear.addEventListener('click',function(){
+    if(!clear.classList.contains('armed')){
+      clear.classList.add('armed'); clear.textContent='กดอีกครั้งเพื่อยืนยันการล้าง';
+      timer=setTimeout(function(){clear.classList.remove('armed');clear.textContent='ล้างข้อมูลทั้งหมด'},4000);
+      return;
+    }
+    clearTimeout(timer); clear.classList.remove('armed'); clear.textContent='ล้างข้อมูลทั้งหมด';
+    state=blankFleet(); isSample=false; save(); render();
+  });
+
+  document.getElementById('save').addEventListener('click',commit);
+  document.getElementById('cancel').addEventListener('click',revert);
+  var rl=document.getElementById('reload'), rlTimer=null;
+  rl.addEventListener('click',function(){
+    if(dirty&&!rl.classList.contains('armed')){
+      rl.classList.add('armed','danger'); rl.textContent='กดอีกครั้ง: ทิ้งสิ่งที่แก้ไขแล้วโหลดใหม่';
+      rlTimer=setTimeout(function(){rl.classList.remove('armed','danger');rl.textContent='โหลดข้อมูลล่าสุด'},4000);
+      return;
+    }
+    clearTimeout(rlTimer); rl.classList.remove('armed','danger'); rl.textContent='โหลดข้อมูลล่าสุด';
+    fetchLatest();
+  });
+  document.getElementById('keyform').addEventListener('submit',function(e){
+    e.preventDefault(); setKey(document.getElementById('keyin').value.trim()); fetchLatest();
+  });
+  window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue=''}});
+  var xbtn=document.getElementById('export'), xmsg=document.getElementById('xmsg'), downloads=null;
+  function say(t){xmsg.textContent=t;xmsg.hidden=!t}
+  function asDate(iso){return iso?new Date(utc(iso)):null}
+  function buildWorkbook(){
+    var wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('Aircraft Status');
+    var heads=['อากาศยาน','สถานภาพ','วันที่ตรวจพบ','รายการข้อขัดข้อง','ฝ่ายที่รับผิดชอบ','การดำเนินการ','MEL Category','วันที่เริ่มต้น','วันครบกำหนด','หมายเหตุ'];
+    var widths=[15.89,15.55,15,36,14.22,46.89,8.44,15,15,30], thin={style:'thin',color:{argb:'FF8A94A3'}};
+    var box={top:thin,left:thin,bottom:thin,right:thin};
+    var thick={style:'medium',color:{argb:'FF000000'}}, boxTop={top:thick,left:thin,bottom:thin,right:thin};
+    var colors={'c-ok':'FF17803D','c-warn':'FFC2610C','c-bad':'FFC81E1E','c-none':'FF5B6778'};
+    widths.forEach(function(w,i){ws.getColumn(i+1).width=w});
+    ws.mergeCells(1,1,1,heads.length);
+    var t=ws.getCell(1,1); t.value='AIRCRAFT STATUS SQUADRON 602'; t.font={bold:true,size:16}; t.alignment={horizontal:'center'};
+    ws.mergeCells(2,1,2,heads.length);
+    var a=ws.getCell(2,1); a.value='ข้อมูล ณ วันที่ '+document.getElementById('asof').textContent; a.alignment={horizontal:'center'};
+    var hr=ws.getRow(4);
+    heads.forEach(function(h,i){var c=hr.getCell(i+1);c.value=h;c.font={bold:true,color:{argb:'FFFFFFFF'}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F3F6E'}};c.alignment={vertical:'middle',horizontal:'center',wrapText:true};c.border=box});
+    /* Row heights are set explicitly so page breaks can be placed between aircraft:
+       an aircraft block that would straddle a printed page starts on a new page. */
+    ws.getRow(1).height=24; ws.getRow(4).height=22;
+    var HEAD=22, BUD=760, used=24+15+15+22;
+    function lines(v,w){
+      if(!v)return 1;
+      var cap=Math.max(4,Math.floor(w*0.85));
+      return String(v).split('\n').reduce(function(a,l){
+        var len=l.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g,'').length;
+        return a+Math.max(1,Math.ceil(len/cap));
+      },0);
+    }
+    var n=5;
+    state.forEach(function(ac){
+      var first=n, blockH=0;
+      ac.rows.forEach(function(row){
+        var vals=[ac.name,ac.status,asDate(row.found),row.defect,row.dept||'',row.action,row.mel,asDate(row.start),asDate(row.due),row.note];
+        var xr=ws.getRow(n);
+        var fillc=row.dept==='ฝ่ายการช่าง'?'FFD7EBFA':row.dept==='ฝ่ายสื่อสาร'?'FFFBDFE9':null;
+        var h=Math.max(lines(row.defect,widths[3]),lines(row.dept,widths[4]),lines(row.action,widths[5]),lines(row.note,widths[9]))*16+4;
+        if(ac.rows.length===1)h=Math.max(h,36);
+        xr.height=h; blockH+=h;
+        vals.forEach(function(v,i){var c=xr.getCell(i+1);c.value=v;c.border=(n===first)?boxTop:box;
+          if(fillc&&i>=3)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:fillc}};
+          c.alignment={vertical:'top',wrapText:true,horizontal:(i===2||i===6||i===7||i===8)?'center':'left'};
+          if(i===2||i===7||i===8)c.numFmt='dd/mm/yyyy'});
+        if(isND(row.note))xr.getCell(10).font={bold:true,color:{argb:'FFC81E1E'}};
+        n++;
+      });
+      if(used+blockH>BUD&&first>5){ws.getRow(first-1).addPageBreak();used=HEAD+blockH}else used+=blockH;
+      if(used>BUD)used=HEAD+(used-HEAD)%(BUD-HEAD);
+      if(n-1>first){ws.mergeCells(first,1,n-1,1);ws.mergeCells(first,2,n-1,2)}
+      var ca=ws.getCell(first,1), cs=ws.getCell(first,2);
+      ca.font={bold:true,size:12}; ca.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+      cs.font={bold:true,color:{argb:colors[statusClass(ac.status)]}}; cs.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+    });
+    for(var q=1;q<=heads.length;q++)ws.getRow(n).getCell(q).border={top:thick};
+    ws.views=[{state:'frozen',ySplit:4}];
+    ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:false,scale:62,horizontalCentered:true,printTitlesRow:'4:4',margins:{left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.3,footer:0.3}};
+    return wb;
+  }
+  xbtn.addEventListener('click',function(){
+    if(!downloads||typeof ExcelJS==='undefined'){say('Export ใช้งานไม่ได้ในหน้านี้');return}
+    say(''); xbtn.disabled=true;
+    buildWorkbook().xlsx.writeBuffer().then(function(buf){
+      return downloads.save({filename:fileName('xlsx'),data:buf});
+    }).then(function(){say('')},function(err){
+      var code=err&&err.code;
+      if(code==='declined')say('');
+      else if(code==='rate_limited')say('มีหน้าต่างยืนยันค้างอยู่ ลองใหม่อีกครั้ง');
+      else say('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    }).then(function(){xbtn.disabled=false});
+  });
+  /* files are saved with an ordinary browser download */
+  downloads={save:function(o){
+    var ext=o.filename.split('.').pop();
+    var mime=ext==='pdf'?'application/pdf':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    var url=URL.createObjectURL(new Blob([o.data],{type:mime})), a=document.createElement('a');
+    a.href=url; a.download=o.filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url)},5000);
+    return Promise.resolve({status:'saved'});
+  }};
+  if(typeof ExcelJS!=='undefined')xbtn.hidden=false;
+
+  /* ---------- A4 preview and PDF ---------- */
+  var pv=document.getElementById('pv'), pages=document.getElementById('pages'), pvmsg=document.getElementById('pvmsg');
+  var PAGE_H=794;
+  var PCOLS=[['อากาศยาน',78],['สถานภาพ',76],['วันที่ตรวจพบ',73],['รายการข้อขัดข้อง',176],['ฝ่ายที่รับผิดชอบ',69],['การดำเนินการ',229],['MEL',41],['วันที่เริ่มต้น',73],['วันครบกำหนด',73],['หมายเหตุ',0]];
+  function fmt(iso){if(!iso)return '';var p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+  function remain(due){
+    if(!due)return null;
+    var d=Math.round((utc(due)-utc(todayISO()))/864e5);
+    if(d<0)return {c:'p-bad',t:'เกินกำหนด '+(-d)+' วัน'};
+    if(d===0)return {c:'p-bad',t:'ครบกำหนดวันนี้'};
+    return {c:d<=3?'p-warn':'p-ok',t:'เหลือ '+d+' วัน'};
+  }
+  function rowEmpty(r){return !(r.found||r.defect||r.dept||r.action||r.mel||r.note)}
+  function pcls(v){return {'c-ok':'p-ok','c-warn':'p-warn','c-bad':'p-bad','c-none':'p-none'}[statusClass(v)]}
+  function newPage(first){
+    var page=el('div',{cls:'page'});
+    var meta=el('div',{cls:'p-meta'},[document.createTextNode('ข้อมูล ณ วันที่ '),el('b',{text:document.getElementById('asof').textContent})]);
+    page.appendChild(el('div',{cls:'p-head'},[el('div',{cls:'p-title',text:'AIRCRAFT STATUS SQUADRON 602'}),meta]));
+    if(first){
+      var tl=el('div',{cls:'p-tally'},[el('span',{text:'อากาศยานทั้งหมด '+state.length})]);
+      STATUSES.slice(1).forEach(function(s){
+        tl.appendChild(el('span',{cls:pcls(s[0]),text:s[1]+' '+state.filter(function(a){return a.status===s[0]}).length}));
+      });
+      page.appendChild(tl);
+    }
+    var cg=el('colgroup'), hr=el('tr');
+    PCOLS.forEach(function(c){var col=el('col');if(c[1])col.style.width=c[1]+'px';cg.appendChild(col);hr.appendChild(el('th',{scope:'col',text:c[0]}))});
+    var table=el('table',{},[cg,el('thead',{},[hr])]);
+    page.appendChild(table);
+    page.appendChild(el('div',{cls:'p-foot'},[el('span',{text:'MEL B = 3 วัน, C = 10 วัน, D = 120 วันปฏิทิน (ไม่นับวันที่พบข้อขัดข้อง)'}),el('span',{cls:'p-no'})]));
+    pages.appendChild(page);
+    return {page:page,table:table};
+  }
+  function makeTbody(ac,rows,cont){
+    var tb=el('tbody'), n=Math.max(rows.length,1);
+    function lead(tr){
+      tr.appendChild(el('th',{scope:'rowgroup',cls:'p-ac',rowspan:n,text:ac.name+(cont?'\n(ต่อ)':'')}));
+      tr.appendChild(el('td',{cls:'p-st '+pcls(ac.status),rowspan:n,text:ac.status||'-'}));
+    }
+    if(!rows.length){
+      var tr0=el('tr'); lead(tr0);
+      tr0.appendChild(el('td',{cls:'p-none',colspan:PCOLS.length-2,text:'ไม่มีข้อขัดข้อง'}));
+      tb.appendChild(tr0); return tb;
+    }
+    rows.forEach(function(r,i){
+      var tr=el('tr'); if(i===0)lead(tr);
+      tr.appendChild(el('td',{cls:'p-c p-d',text:fmt(r.found)}));
+      tr.appendChild(el('td',{text:r.defect}));
+      tr.appendChild(el('td',{cls:'p-c',text:r.dept||''}));
+      tr.appendChild(el('td',{text:r.action}));
+      tr.appendChild(el('td',{cls:'p-c',text:r.mel}));
+      tr.appendChild(el('td',{cls:'p-c p-d',text:fmt(r.start)}));
+      var due=el('td',{cls:'p-c p-d',text:fmt(r.due)}), rm=remain(r.due);
+      if(rm)due.appendChild(el('span',{cls:'p-left '+rm.c,text:rm.t}));
+      tr.appendChild(due);
+      tr.appendChild(el('td',{cls:isND(r.note)?'p-red':'',text:r.note}));
+      var k=r.dept==='ฝ่ายการช่าง'?'t-m':r.dept==='ฝ่ายสื่อสาร'?'t-c':'';
+      if(k)Array.prototype.forEach.call(tr.querySelectorAll('td:not(.p-st)'),function(td,j){if(j>0)td.classList.add(k)});
+      tb.appendChild(tr);
+    });
+    return tb;
+  }
+  function buildPreview(){
+    pages.textContent='';
+    var cur=newPage(true);
+    function over(){return cur.page.offsetHeight>PAGE_H+1}
+    /* An aircraft never straddles a page: if it does not fit, the whole block moves to a new page.
+       Only a block taller than a full page is split, with the aircraft name repeated. */
+    function place(ac,rows,cont){
+      var tb=makeTbody(ac,rows,cont); cur.table.appendChild(tb);
+      if(!over())return;
+      if(cur.table.tBodies.length>1){cur.table.removeChild(tb); cur=newPage(false); place(ac,rows,cont); return}
+      var k=rows.length;
+      while(k>1&&over()){k--; cur.table.removeChild(tb); tb=makeTbody(ac,rows.slice(0,k),cont); cur.table.appendChild(tb)}
+      if(k<rows.length){cur=newPage(false); place(ac,rows.slice(k),true)}
+    }
+    state.forEach(function(ac){place(ac,ac.rows.filter(function(r){return !rowEmpty(r)}),false)});
+    var nos=pages.querySelectorAll('.p-no');
+    Array.prototype.forEach.call(nos,function(x,i){x.textContent='หน้า '+(i+1)+' / '+nos.length});
+  }
+  function pmsg(t){pvmsg.textContent=t||''}
+  function openPreview(){
+    pv.hidden=false; pmsg('');
+    var ready=(document.fonts&&document.fonts.ready)||Promise.resolve();
+    return ready.then(buildPreview,buildPreview);
+  }
+  function closePreview(){pv.hidden=true; pages.textContent=''}
+  var busy=false;
+  function exportPDF(forPrint){
+    if(busy)return;
+    var J=window.jspdf&&window.jspdf.jsPDF;
+    if(!downloads||!J||typeof html2canvas==='undefined'){pmsg('หน้านี้บันทึกไฟล์ PDF ไม่ได้');return}
+    busy=true; pmsg('กำลังสร้างไฟล์ PDF…');
+    document.getElementById('pvscroll').scrollTo(0,0);
+    var list=Array.prototype.slice.call(pages.querySelectorAll('.page'));
+    var pdf=new J({orientation:'landscape',unit:'mm',format:'a4'});
+    var chain=Promise.resolve();
+    list.forEach(function(pg,i){
+      chain=chain.then(function(){
+        /* render a copy outside the scrolling preview so nothing is clipped */
+        var holder=el('div'), copy=pg.cloneNode(true);
+        holder.style.cssText='position:absolute;left:-12000px;top:0';
+        holder.appendChild(copy); document.body.appendChild(holder);
+        function done(){if(holder.parentNode)holder.parentNode.removeChild(holder)}
+        return html2canvas(copy,{scale:2,backgroundColor:'#ffffff',logging:false}).then(function(cv){done();return cv},function(e){done();throw e});
+      }).then(function(cv){
+        var w=297,h=cv.height/cv.width*297; if(h>210){w=w*210/h;h=210}
+        if(i)pdf.addPage();
+        pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',(297-w)/2,0,w,h);
+      });
+    });
+    chain.then(function(){
+      return downloads.save({filename:fileName('pdf'),data:pdf.output('arraybuffer')});
+    }).then(function(){
+      pmsg(forPrint?'บันทึก PDF แล้ว เปิดไฟล์แล้วสั่งพิมพ์ได้เลย':'บันทึก PDF แล้ว');
+    },function(err){
+      var code=err&&err.code;
+      pmsg(code==='declined'?'':code==='rate_limited'?'มีหน้าต่างยืนยันค้างอยู่ ลองใหม่อีกครั้ง':'สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    }).then(function(){busy=false});
+  }
+  document.getElementById('preview').addEventListener('click',openPreview);
+  document.getElementById('pdf').addEventListener('click',function(){openPreview().then(function(){exportPDF(false)})});
+  document.getElementById('pvpdf').addEventListener('click',function(){exportPDF(false)});
+  document.getElementById('pvclose').addEventListener('click',closePreview);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!pv.hidden)closePreview()});
+
+  head(); fetchLatest();
+})();
+</script>
+
+</body>
+</html>
